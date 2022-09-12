@@ -14,34 +14,33 @@ There are 2 options for getting the right tools on developer's laptop:
  * **quick** leverage Docker+Dojo. Requires only to install docker and dojo on your laptop.
  * **manual** requires to install all tools manually
 
- The rest of this file describes the quick way, please refer to [MANUAL_SETUP.md](MANUAL_SETUP.md) for the other option.
+ The rest of this file describes the manual way, please refer to [README.md](README.md) for the other option.
 
-## Docker+Dojo setup
+## Manual setup
 
-We can leverage docker to define required build and operations dependencies by referencing docker images.
+You need all the tools below installed locally:
 
-[Dojo](https://github.com/kudulab/dojo) is a similar tool to [batect](https://github.com/charleskorn/batect/). It is just a wrapper around docker commands to bring up a well-defined development environment in containers.
+### Prerequisites to run the Python applications
 
-This is the recommended approach as it enforces consistency between CI setup and the tools used by developers.
+ * make
+ * Python and a virtualenv
 
-Assuming you already have a working docker, you can install dojo
+### Prerequisites for running infrastructure code
 
-**On OSX** with:
+ * make
+ * local docker daemon
+ * docker buildx addon
+ * terraform 0.12.6
+ * ssh-keygen
+ * AWS cli
 
-```sh
-brew install kudulab/homebrew-dojo-osx/dojo
-```
+### Installing docker buildx
 
-**On Linux** with:
+This is a multi arch build tool to support x86 builds on ARM based laptops
 
-```sh
-DOJO_VERSION=0.8.0
-wget -O dojo https://github.com/kudulab/dojo/releases/download/${DOJO_VERSION}/dojo_linux_amd64
-sudo mv dojo /usr/local/bin
-sudo chmod +x /usr/local/bin/dojo
-```
+Automated installation with tools in the repo: `./recops.sh install_buildx`
 
-This project is also using `make`, so ensure that you have that on your PATH too.
+More details here: https://github.com/abiosoft/colima/discussions/273
 
 # Infrastructure setup
 
@@ -55,21 +54,22 @@ These steps will provision:
  * a minimal VPC with 2 subnets
  * ECR repositories for docker images
 
-### Setup aws credentials
-The interviewer will send you an email with AWS credentials, which you should export in your shell.
-
+### Setup aws session
+Look for the aws_session file in the code base and run:
 ```sh
-export CODE_PREFIX=****
-export AWS_SECRET_ACCESS_KEY=****
-export AWS_ACCESS_KEY_ID=****
+source aws_session
+```
+Now run:
+```sh
+make _backend-support.infra
+make _base.infra
 ```
 
-Now run:
+## Build the application artifacts
 
+If you haven't built the jars and static resources yet, you should do so now:
 ```sh
-source randomize.sh && randomize
-make backend-support.infra
-make base.infra
+make _apps
 ```
 
 ## Build docker images
@@ -77,7 +77,6 @@ make base.infra
 Artifacts from previous stage will be packaged into docker images, then pushed to ECR.
 
 Each application has its own image. Individual image can be built with:
-
 ```sh
 make <app-name>.docker
 # for example:
@@ -85,7 +84,6 @@ make front-end.docker
 ```
 
 But you can build all images at once with
-
 ```sh
 make docker
 ```
@@ -93,21 +91,18 @@ make docker
 ## Push docker images
 
 Before applications can be deployed on AWS, the docker images have to be pushed:
-
 ```sh
-make push
+make _push
 ```
 
 ## Provision services
 
 Then, we can provision the backend and front-end services:
-
 ```sh
-make news.infra
+make _news.infra
 ```
 
 Terraform will print the output with URL of the front_end server, e.g.
-
 ```
 Outputs:
 
@@ -117,7 +112,6 @@ frontend_url = http://34.244.219.156:8080
 ## Delete services
 
 To delete the deployment provisioned by terraform, run following commands:
-
 ```sh
-make news.deinfra
+make _news.deinfra
 ```
